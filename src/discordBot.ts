@@ -42,13 +42,13 @@ export class DiscordBot {
         return;
       }
 
-      await interaction.deferReply();
-
       const hours = interaction.options.getInteger('hours') ?? 1;
       if (hours > SUMMARY_MAX_HOURS) {
         await this.replyWithError(interaction, `You can only summarize up to ${SUMMARY_MAX_HOURS} hours.`);
         return;
       }
+
+      await interaction.deferReply();
 
       this.lastUsage.set(userId, Date.now());
 
