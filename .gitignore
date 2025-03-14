@@ -1,0 +1,10 @@
+# Node.js
+node_modules/
+# Environment variables
+.env
+# Database files
+summaries.db
+# Dist directory
+dist/
+# Prettier configuration
+.prettierrc

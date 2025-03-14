@@ -1,0 +1,20 @@
+{
+  "dependencies": {
+    "axios": "^1.8.2",
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7",
+    "gpt-3-encoder": "^1.1.4",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "@types/sqlite3": "^3.1.11",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "npx tsc",
+    "dev-build": "npx tsc --watch"
+  }
+}
