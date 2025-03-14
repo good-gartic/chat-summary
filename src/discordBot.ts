@@ -1,7 +1,7 @@
 import { Client, GatewayIntentBits, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { DatabaseService } from './databaseService';
 import { SummaryService } from './summaryService';
-import { TOKEN, SUMMARY_CHANNEL_ID, RATE_LIMIT_HOURS, MILLISECONDS_IN_HOUR } from './config';
+import { TOKEN, SUMMARY_CHANNEL_ID, RATE_LIMIT_HOURS, MILLISECONDS_IN_HOUR, SUMMARY_MAX_HOURS } from './config';
 
 export class DiscordBot {
   private client: Client;
@@ -44,9 +44,14 @@ export class DiscordBot {
 
       await interaction.deferReply();
 
+      const hours = interaction.options.getInteger('hours') ?? 1;
+      if (hours > SUMMARY_MAX_HOURS) {
+        await this.replyWithError(interaction, `You can only summarize up to ${SUMMARY_MAX_HOURS} hours.`);
+        return;
+      }
+
       this.lastUsage.set(userId, Date.now());
 
-      const hours = interaction.options.getInteger('hours') ?? 1;
       const cachedSummary = await this.databaseService.getSummaryFromDB(interaction.channelId, hours);
       if (cachedSummary) {
         await this.replyWithSummary(interaction, cachedSummary.summary);

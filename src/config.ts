@@ -20,6 +20,7 @@ export const SUMMARY_CHANNEL_ID: string =
 
 export const MILLISECONDS_IN_HOUR = 3600000;
 export const RATE_LIMIT_HOURS = 2;
+export const SUMMARY_MAX_HOURS = 16;
 
 export const OPENAI_PROMPT = `Summarize the following Discord chat for a member who is catching up after a few hours. 
           Break it down into subtopics and mention user names as bold.
