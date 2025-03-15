@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { Client } from 'discord.js';
 import { encode } from 'gpt-3-encoder';
-import { OPENAI_API_KEY, MILLISECONDS_IN_HOUR, OPENAI_PROMPT, OPENAI_MODEL, OPENAI_MAX_TOKENS } from './config';
+import { MILLISECONDS_IN_HOUR, OPENAI_SUMMARY_PROMPT, OPENAI_MODEL, OPENAI_MAX_TOKENS } from '../config';
+import { OpenAIAccessor } from '../accessor/openAIAccessor';
 
 interface Message {
   message_id: string;
@@ -73,26 +74,6 @@ export class SummaryService {
   }
 
   public async generateSummary(messagesJson: string): Promise<string> {
-    try {
-      const response = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
-        {
-          model: OPENAI_MODEL,
-          messages: [
-            {
-              role: 'system',
-              content: OPENAI_PROMPT,
-            },
-            { role: 'user', content: messagesJson },
-          ],
-        },
-        { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
-      );
-
-      return response.data.choices[0].message.content;
-    } catch (error) {
-      console.error('Error generating summary:', error);
-      return 'Error generating summary.';
-    }
+    return OpenAIAccessor.callOpenAI(OPENAI_SUMMARY_PROMPT, OPENAI_MODEL, messagesJson);
   }
 }
