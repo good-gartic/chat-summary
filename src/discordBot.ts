@@ -8,8 +8,16 @@ import {
 } from 'discord.js';
 import { DatabaseService } from './services/databaseService';
 import { SummaryService } from './services/summaryService';
-import { TOKEN, SUMMARY_CHANNEL_ID, RATE_LIMIT_HOURS, MILLISECONDS_IN_HOUR, SUMMARY_MAX_HOURS } from './config';
-import { DefinitionService } from './services/definitionService';
+import {
+  TOKEN,
+  SUMMARY_CHANNEL_ID,
+  RATE_LIMIT_HOURS,
+  MILLISECONDS_IN_HOUR,
+  SUMMARY_MAX_HOURS,
+  LLM_QUERY_TYPE,
+} from './config';
+import { LLMService } from './services/llmService';
+import { create } from 'domain';
 
 export class DiscordBot {
   private client: Client;
@@ -42,10 +50,25 @@ export class DiscordBot {
         this.handleDefineCommand(text, message);
       }
 
-      if (message.content === '!define') {
+      if (message.content.startsWith('!answer ')) {
+        text = message.content.substring(8);
+        this.handleAnswerCommand(text, message);
+      }
+
+      if (message.content.startsWith('!translate ')) {
+        text = message.content.substring(11);
+        this.handleTranslateCommand(text, message);
+      }
+
+      if (message.content.startsWith('!explain ')) {
+        text = message.content.substring(9);
+        this.handleExplainCommand(text, message);
+      }
+
+      if (['!define', '!translate', '!explain'].includes(message.content)) {
         const messageId = message.reference?.messageId || null;
         if (!messageId) {
-          return message.reply('Please reply to a message to define it.');
+          return message.reply('Please reply to a message');
         }
         let repliedMessage = null;
         try {
@@ -53,7 +76,7 @@ export class DiscordBot {
         } catch (error) {
           return message.reply({ content: "Couldn't find the message." });
         }
-        this.handleDefineCommand(repliedMessage.content, message);
+        this.handleRepliedCommands(message.content, repliedMessage, message);
       }
     });
 
@@ -111,9 +134,62 @@ export class DiscordBot {
   }
 
   private async handleDefineCommand(text: string, message: OmitPartialGroupDMChannel<Message<boolean>>) {
-    const definition = await DefinitionService.getDefinition(text);
-    const embed = new EmbedBuilder().setTitle('Definition').setDescription(definition).setColor(0x00ae86);
-    await message.reply({ embeds: [embed] });
+    const definition = await LLMService.getLLMResponse(text, LLM_QUERY_TYPE.DEFINE);
+    const embed = await this.createEmbed(`Definition`, definition, message.author);
+    await message.channel.send({ embeds: [embed] });
+    await message.delete();
+  }
+
+  private async handleAnswerCommand(text: string, message: OmitPartialGroupDMChannel<Message<boolean>>) {
+    const answer = await LLMService.getLLMResponse(text, LLM_QUERY_TYPE.ANSWER);
+    const embed = await this.createEmbed(text, answer, message.author);
+    await message.channel.send({ embeds: [embed] });
+    await message.delete();
+  }
+
+  private async handleTranslateCommand(text: string, message: OmitPartialGroupDMChannel<Message<boolean>>) {
+    const translation = await LLMService.getLLMResponse(text, LLM_QUERY_TYPE.TRANSLATE);
+    const translationMessage = `**Original:** ${text}\n${translation}`;
+    const embed = await this.createEmbed('Translation', translationMessage, message.author);
+    await message.channel.send({ embeds: [embed] });
+    await message.delete();
+  }
+
+  private async handleExplainCommand(text: string, message: OmitPartialGroupDMChannel<Message<boolean>>) {
+    const explanation = await LLMService.getLLMResponse(text, LLM_QUERY_TYPE.EXPLAIN);
+    const explainationMessage = `**${text}**\n${explanation}`;
+    const embed = await this.createEmbed('Explanation', explainationMessage, message.author);
+    await message.channel.send({ embeds: [embed] });
+    await message.delete();
+  }
+
+  private async handleRepliedCommands(
+    commandType: string,
+    repliedMessage: Message<boolean>,
+    message: Message<boolean>
+  ) {
+    let embed = null;
+    switch (commandType) {
+      case '!translate':
+        const translation = await LLMService.getLLMResponse(repliedMessage.content, LLM_QUERY_TYPE.TRANSLATE);
+        const translationMessage = `**Original:** ${repliedMessage.content}\n${translation}`;
+        embed = await this.createEmbed('Translation', translationMessage, message.author);
+        await repliedMessage.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+        message.delete();
+        break;
+      case '!explain':
+        const explanation = await LLMService.getLLMResponse(repliedMessage.content, LLM_QUERY_TYPE.EXPLAIN);
+        embed = await this.createEmbed('Explanation', explanation, message.author);
+        await repliedMessage.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+        message.delete();
+        break;
+      case '!define':
+        const definition = await LLMService.getLLMResponse(repliedMessage.content, LLM_QUERY_TYPE.DEFINE);
+        embed = await this.createEmbed('Definition', definition, message.author);
+        await repliedMessage.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+        message.delete();
+        break;
+    }
   }
 
   private isRateLimitPassed(userId: string): boolean {
@@ -138,5 +214,16 @@ export class DiscordBot {
   private async replyWithSummary(interaction: ChatInputCommandInteraction, summary: string) {
     const embed = new EmbedBuilder().setDescription(summary).setColor(0x00ae86);
     await interaction.followUp({ embeds: [embed] });
+  }
+
+  private async createEmbed(title: string, description: string, requestedBy: Message['author']) {
+    return new EmbedBuilder()
+      .setTitle(title)
+      .setDescription(description)
+      .setColor(0x00ae86)
+      .setFooter({
+        text: 'Requested by ' + (requestedBy.displayName || requestedBy.username),
+        iconURL: requestedBy.displayAvatarURL(),
+      });
   }
 }

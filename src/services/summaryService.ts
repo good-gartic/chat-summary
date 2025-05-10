@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { Client } from 'discord.js';
 import { encode } from 'gpt-3-encoder';
 import { MILLISECONDS_IN_HOUR, OPENAI_SUMMARY_PROMPT, OPENAI_MODEL, OPENAI_MAX_TOKENS } from '../config';
